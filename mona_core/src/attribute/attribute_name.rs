@@ -11,6 +11,10 @@ pub enum AttributeName {
     ElementalMastery,
     // 不参与精通转换的计算，例如草神天赋不被船桨计算
     ElementalMasteryExtra,
+    // 二次转换而来的攻击力，用于避免循环依赖（如元素精通转攻击力）
+    ATKFromSecondaryConversion,
+    // 不参与二次转换的攻击力计算，用于避免循环依赖
+    ATKExcludingSecondaryConversion,
     Recharge,
     ShieldStrength,
 

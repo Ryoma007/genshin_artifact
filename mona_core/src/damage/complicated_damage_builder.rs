@@ -686,7 +686,7 @@ impl ComplicatedDamageBuilder {
 
     fn get_atk_composition(&self, attribute: &ComplicatedAttributeGraph) -> EntryType {
         let mut atk_comp =
-            attribute.get_composition_merge(&vec![AttributeName::ATKBase, AttributeName::ATKPercentage, AttributeName::ATKFixed]);
+            attribute.get_composition_merge(&vec![AttributeName::ATKBase, AttributeName::ATKPercentage, AttributeName::ATKFixed, AttributeName::ATKFromSecondaryConversion]);
         atk_comp.merge(&self.extra_atk);
 
         atk_comp

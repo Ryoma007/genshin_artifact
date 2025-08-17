@@ -129,6 +129,7 @@ impl TargetFunction for IneffaDefaultTargetFunction {
         // 由于SimpleDamageBuilder不支持直伤月感电，我们手动计算
         // 公式：直伤月感电 = 3 × 攻击力 × 倍率 × (1+基础提升%) × (1+(6×元素精通)/(元素精通+2000)+月感电增伤%) × 抗性系数 × 暴击区
         let atk = attribute.get_value(AttributeName::ATKBase) + attribute.get_value(AttributeName::ATKFixed) + 
+                  attribute.get_value(AttributeName::ATKFromSecondaryConversion) +
                   attribute.get_value(AttributeName::ATKPercentage) * attribute.get_value(AttributeName::ATKBase);
         let talent_ratio = 0.65; // 天赋2：频率超限回路 65%攻击力
         let multiplier_3x = 3.0; // 直伤月感电特有的3倍系数

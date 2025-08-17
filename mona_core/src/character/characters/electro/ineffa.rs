@@ -79,22 +79,25 @@ pub struct IneffaEffect {
 
 impl<A: Attribute> ChangeAttribute<A> for IneffaEffect {
     fn change_attribute(&self, attribute: &mut A) {
+        // *** 使用基础攻击力避免循环依赖 ***
         // 天赋3：全相重构协议 - 基于攻击力的6%，提升元素精通
-        // 使用 add_edge1 建立从 ATK 到 ElementalMastery 的连接，确保武器攻击力加成被正确计算
+        // 使用 ATKExcludingSecondaryConversion 替代 ATK，只计算基础攻击力和百分比加成，不包括二次转换的攻击力
+        // 这样避免了与赤沙之杖等武器的循环依赖：ATK -> EM -> ATKFixed -> ATK
         let em_bonus_rate = self.em_bonus_rate;
         attribute.add_edge1(
-            AttributeName::ATK,
-            AttributeName::ElementalMastery,
+            AttributeName::ATKExcludingSecondaryConversion,  // 只包含基础攻击力，不含二次转换部分
+            AttributeName::ElementalMasteryExtra,  // 隔离属性：不会被武器/圣遗物转换
             Box::new(move |atk, _| atk * em_bonus_rate),
             Box::new(move |grad, _atk, _em| (grad * em_bonus_rate, 0.0)),
-            "伊涅芙天赋：全相重构协议"
+            "伊涅芙天赋：全相重构协议 - 避免循环依赖"
         );
         
         // 一命：循环整流引擎 - 基于攻击力提升月感电反应伤害
         // 每100点攻击力提升2.5%伤害，至多50%
+        // 这里使用完整的ATK，因为月感电伤害加成不会造成循环依赖
         if self.c1_moonelectro_bonus > 0.0 {
             attribute.add_edge1(
-                AttributeName::ATK,
+                AttributeName::ATK,  // 使用完整攻击力，包括武器转换
                 AttributeName::EnhanceMoonelectro,
                 Box::new(move |atk, _| {
                     let bonus_per_100_atk = 0.025; // 2.5%
@@ -115,9 +118,10 @@ impl<A: Attribute> ChangeAttribute<A> for IneffaEffect {
         
         // 被动天赋：月兆祝赐·象拟中继 - 基于攻击力提升月感电反应基础伤害
         // 每100点攻击力提升0.7%基础伤害，至多14%
+        // 这里使用完整的ATK，因为月感电基础伤害加成不会造成循环依赖
         if self.passive_moonelectro_base_bonus > 0.0 {
             attribute.add_edge1(
-                AttributeName::ATK,
+                AttributeName::ATK,  // 使用完整攻击力，包括武器转换
                 AttributeName::EnhanceMoonelectroBase,
                 Box::new(move |atk, _| {
                     let bonus_per_100_atk = 0.007; // 0.7%
@@ -220,6 +224,14 @@ impl CharacterTrait for Ineffa {
                 en: "Parameter Permutation Active"
             ),
             config: ItemConfigType::Bool { default: true }
+        },
+        ItemConfig {
+            name: "moonelectro_relay_active",
+            title: locale!(
+                zh_cn: "月兆祝赐·象拟中继生效",
+                en: "Moonelectro Simulation Relay Active"
+            ),
+            config: ItemConfigType::Bool { default: true }
         }
     ]);
 
@@ -277,9 +289,9 @@ impl CharacterTrait for Ineffa {
     }
 
     fn new_effect<A: Attribute>(common_data: &CharacterCommonData, config: &CharacterConfig) -> Option<Box<dyn ChangeAttribute<A>>> {
-        let em_bonus_active = match config {
-            CharacterConfig::Ineffa { em_bonus_active } => *em_bonus_active,
-            _ => true,
+        let (em_bonus_active, moonelectro_relay_active) = match config {
+            CharacterConfig::Ineffa { em_bonus_active, moonelectro_relay_active } => (*em_bonus_active, *moonelectro_relay_active),
+            _ => (true, true),
         };
 
         let em_bonus_rate = if em_bonus_active { 0.06 } else { 0.0 };
@@ -288,7 +300,7 @@ impl CharacterTrait for Ineffa {
         let c1_moonelectro_bonus = if common_data.constellation >= 1 { 1.0 } else { 0.0 };
         
         // 被动天赋：月兆祝赐·象拟中继 - 月感电反应基础伤害提升，每100点攻击力提升0.7%，最多14%
-        let passive_moonelectro_base_bonus = 1.0; // 被动天赋始终生效
+        let passive_moonelectro_base_bonus = if moonelectro_relay_active { 1.0 } else { 0.0 };
 
         Some(Box::new(IneffaEffect {
             c1_moonelectro_bonus,

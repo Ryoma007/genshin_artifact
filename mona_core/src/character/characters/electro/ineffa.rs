@@ -27,6 +27,7 @@ pub struct IneffaSkillType {
     pub plunging_dmg3: [f64; 15],
     
     pub elemental_skill_dmg: [f64; 15],
+    pub vilkita_discharge_dmg: [f64; 15], // 薇尔琪塔放电伤害
     pub shield_absorption: [f64; 15], 
     pub shield_base: [f64; 15], // 护盾基础值
     
@@ -37,15 +38,18 @@ pub const INEFFA_SKILL: IneffaSkillType = IneffaSkillType {
     // Normal Attack: Cyclonic Duster
     normal_dmg1: [0.3484, 0.3767, 0.4051, 0.4456, 0.4739, 0.5063, 0.5509, 0.5954, 0.64, 0.6886, 0.7372, 0.7858, 0.8344, 0.883, 0.9316],
     normal_dmg2: [0.3422, 0.3701, 0.3979, 0.4377, 0.4656, 0.4974, 0.5412, 0.5849, 0.6287, 0.6765, 0.7242, 0.772, 0.8197, 0.8675, 0.9152],
-    normal_dmg3: [0.4284, 0.4634, 0.4984, 0.5482, 0.5833, 0.6230, 0.6778, 0.7327, 0.7875, 0.8473, 0.9072, 0.9670, 1.0268, 1.0867, 1.1465],
-    normal_dmg4: [0.5568, 0.6022, 0.6477, 0.7125, 0.7579, 0.8096, 0.8809, 0.9521, 1.0234, 1.1011, 1.1789, 1.2566, 1.3343, 1.4121, 1.4898],
-    charged_dmg: [1.1138, 1.2046, 1.2954, 1.4249, 1.5157, 1.6193, 1.7617, 1.9041, 2.0466, 2.2022, 2.3579, 2.5136, 2.6692, 2.8249, 2.9806],
+    normal_dmg3: [0.4552, 0.4922, 0.5292, 0.5822, 0.6192, 0.6616, 0.7198, 0.778, 0.8362, 0.8996, 0.9632, 1.0266, 1.0902, 1.1536, 1.2172], // 22.76% × 2
+    normal_dmg4: [0.5607, 0.6063, 0.652, 0.7171, 0.7628, 0.8149, 0.8867, 0.9584, 1.0301, 1.1083, 1.1865, 1.2648, 1.343, 1.4213, 1.4995],
+    charged_dmg: [0.9494, 1.0267, 1.104, 1.2144, 1.2917, 1.38, 1.5014, 1.6229, 1.7443, 1.8768, 2.0093, 2.1418, 2.2742, 2.4067, 2.5392],
     plunging_dmg1: [0.6393, 0.6914, 0.7434, 0.8177, 0.8698, 0.9293, 1.0112, 1.0931, 1.175, 1.2638, 1.3526, 1.4414, 1.5302, 1.619, 1.7098],
     plunging_dmg2: [1.2784, 1.3824, 1.4865, 1.6351, 1.7392, 1.8581, 2.0216, 2.1851, 2.3486, 2.527, 2.7054, 2.8838, 3.0622, 3.2405, 3.4189],
     plunging_dmg3: [1.5968, 1.7267, 1.8567, 2.0424, 2.1723, 2.3209, 2.5251, 2.7293, 2.9336, 3.1564, 3.3792, 3.602, 3.8248, 4.0476, 4.2704],
     
     // Elemental Skill: Cleaning Mode: Carrier Frequency
     elemental_skill_dmg: [0.864, 0.9288, 0.9936, 1.08, 1.1448, 1.2096, 1.296, 1.3824, 1.4688, 1.5552, 1.6416, 1.728, 1.836, 1.944, 2.052],
+    
+    // Vilkita Discharge Damage
+    vilkita_discharge_dmg: [0.96, 1.032, 1.104, 1.2, 1.272, 1.344, 1.44, 1.536, 1.632, 1.728, 1.824, 1.92, 2.04, 2.16, 2.28],
     
     // Shield absorption based on ATK + base value
     shield_absorption: [2.2118, 2.3777, 2.5436, 2.7648, 2.9307, 3.0966, 3.3178, 3.5389, 3.7601, 3.9813, 4.2024, 4.4236, 4.7046, 4.9856, 5.2666],
@@ -153,6 +157,7 @@ damage_enum!(
     Plunging2
     Plunging3
     Skill
+    VilkitaDischarge
     Burst
     TalentOverclocking
     C2Explosion
@@ -163,7 +168,7 @@ impl IneffaDamageEnum {
         use IneffaDamageEnum::*;
         match *self {
             Normal1 | Normal2 | Normal3 | Normal4 | Charged | Plunging1 | Plunging2 | Plunging3 => Element::Physical,
-            Skill | Burst | TalentOverclocking | C2Explosion => Element::Electro,
+            Skill | VilkitaDischarge | Burst | TalentOverclocking | C2Explosion => Element::Electro,
         }
     }
 
@@ -174,7 +179,7 @@ impl IneffaDamageEnum {
             Charged => SkillType::ChargedAttack,
             Plunging1 => SkillType::PlungingAttackInAction,
             Plunging2 | Plunging3 => SkillType::PlungingAttackOnGround,
-            Skill => SkillType::ElementalSkill,
+            Skill | VilkitaDischarge => SkillType::ElementalSkill,
             Burst => SkillType::ElementalBurst,
             TalentOverclocking | C2Explosion => SkillType::ElementalSkill,
         }
@@ -206,6 +211,7 @@ impl CharacterTrait for Ineffa {
         skill2: skill_map!(
             IneffaDamageEnum
             Skill locale!(zh_cn: "技能伤害", en: "Skill DMG")
+            VilkitaDischarge locale!(zh_cn: "薇尔琪塔放电伤害", en: "Vilkita Discharge DMG")
             TalentOverclocking locale!(zh_cn: "频率超限回路", en: "Overclocking Circuit")
         ),
         skill3: skill_map!(
@@ -253,6 +259,7 @@ impl CharacterTrait for Ineffa {
             Plunging2 => INEFFA_SKILL.plunging_dmg2[s1],
             Plunging3 => INEFFA_SKILL.plunging_dmg3[s1],
             Skill => INEFFA_SKILL.elemental_skill_dmg[s2],
+            VilkitaDischarge => INEFFA_SKILL.vilkita_discharge_dmg[s2],
             Burst => INEFFA_SKILL.elemental_burst_dmg[s3],
             TalentOverclocking => 0.65, // 天赋2：频率超限回路 65%攻击力
             C2Explosion => 3.0, // 二命：惩戒敕谕 300%攻击力

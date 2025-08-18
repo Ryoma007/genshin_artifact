@@ -1,4 +1,4 @@
-use crate::attribute::{Attribute, AttributeName, SimpleAttributeGraph2};
+use crate::attribute::{Attribute, AttributeName, AttributeCommon, SimpleAttributeGraph2};
 use crate::character::{CharacterName, CharacterStaticData, Character};
 use crate::character::character_common_data::CharacterCommonData;
 use crate::character::characters::Ineffa;
@@ -8,6 +8,7 @@ use crate::common::i18n::locale;
 use crate::common::item_config_type::{ItemConfig, ItemConfigType};
 use crate::common::{StatName, WeaponType, Element, SkillType};
 use crate::damage::{DamageContext, SimpleDamageBuilder};
+use crate::damage::level_coefficient::LEVEL_MULTIPLIER;
 use crate::target_functions::{TargetFunction, TargetFunctionConfig, TargetFunctionName};
 use crate::target_functions::target_function::TargetFunctionMetaTrait;
 use crate::target_functions::target_function_meta::{TargetFunctionFor, TargetFunctionMeta, TargetFunctionMetaImage};
@@ -118,27 +119,36 @@ impl TargetFunction for IneffaDefaultTargetFunction {
         // 一次反应月感电伤害（假设基于E技能触发，手动计算反应伤害）
         let character_level = character.common_data.level;
         let em = attribute.get_value(AttributeName::ElementalMastery);
-        let moonelectro_base = match character_level {
-            90 => 3306.2,
-            _ => 3306.2 * (character_level as f64 / 90.0),
-        };
+        
+        // 使用正确的等级系数和月感电基础倍率
+        let level_multiplier = LEVEL_MULTIPLIER[character_level - 1];
+        let moonelectro_base_multiplier = 1.8; // 月感电基础倍率
         let em_multiplier = 1.0 + (6.0 * em) / (em + 2000.0);
-        let moonelectro_reaction_damage = moonelectro_base * em_multiplier;
-
-        // 一次直伤月感电（天赋2：频率超限回路）
-        // 由于SimpleDamageBuilder不支持直伤月感电，我们手动计算
-        // 公式：直伤月感电 = 3 × 攻击力 × 倍率 × (1+基础提升%) × (1+(6×元素精通)/(元素精通+2000)+月感电增伤%) × 抗性系数 × 暴击区
-        let atk = attribute.get_value(AttributeName::ATKBase) + attribute.get_value(AttributeName::ATKFixed) + 
-                  attribute.get_value(AttributeName::ATKFromSecondaryConversion) +
-                  attribute.get_value(AttributeName::ATKPercentage) * attribute.get_value(AttributeName::ATKBase);
-        let talent_ratio = 0.65; // 天赋2：频率超限回路 65%攻击力
-        let multiplier_3x = 3.0; // 直伤月感电特有的3倍系数
+        
+        // 获取月感电相关加成
+        let moonelectro_base_enhance = attribute.get_value(AttributeName::EnhanceMoonelectroBase); // 被动天赋基础伤害提升
+        let moonelectro_enhance = attribute.get_value(AttributeName::EnhanceMoonelectro); // 一命伤害提升
         let crit_rate = attribute.get_value(AttributeName::CriticalBase).min(1.0);
         let crit_damage = attribute.get_value(AttributeName::CriticalDamageBase);
         let resistance_ratio = enemy.get_resistance_ratio(Element::Electro, 0.0);
         
-        let direct_moonelectro_base = multiplier_3x * atk * talent_ratio * em_multiplier;
-        let direct_moonelectro_damage = direct_moonelectro_base * (1.0 + crit_rate * crit_damage) * resistance_ratio;
+        // 反应月感电计算：等级系数 × 基础倍率 × (1+基础提升%) × (1+EM加成) × (1+月感电增伤%) × 抗性系数 × 暴击区
+        let enhanced_base_multiplier = moonelectro_base_multiplier * (1.0 + moonelectro_base_enhance);
+        let moonelectro_base_damage = level_multiplier * enhanced_base_multiplier * (1.0 + moonelectro_enhance);
+        let moonelectro_reaction_damage = moonelectro_base_damage * em_multiplier * 
+                                         (1.0 + crit_rate * crit_damage) * resistance_ratio;
+
+        // 一次直伤月感电（天赋2：频率超限回路）
+        // 公式：直伤月感电 = 3 × 攻击力 × 倍率 × (1+基础提升%) × (1+(6×元素精通)/(元素精通+2000)+月感电增伤%) × 抗性系数 × 暴击区
+        let atk = attribute.get_atk(); // 使用完整的攻击力计算，包括所有来源
+        let talent_ratio = 0.65; // 天赋2：频率超限回路 65%攻击力
+        let multiplier_3x = 3.0; // 直伤月感电特有的3倍系数
+        
+        // 直伤月感电计算：3 × 攻击力 × 倍率 × (1+基础提升%) × (1+(6×元素精通)/(元素精通+2000)+月感电增伤%) × 抗性系数 × 暴击区
+        let direct_em_multiplier = 6.0 * em / (em + 2000.0); // 直伤月感电的元素精通加成公式
+        let direct_moonelectro_base = multiplier_3x * atk * talent_ratio * (1.0 + moonelectro_base_enhance);
+        let direct_moonelectro_damage = direct_moonelectro_base * (1.0 + direct_em_multiplier + moonelectro_enhance) * 
+                                       (1.0 + crit_rate * crit_damage) * resistance_ratio;
 
         // 总伤害 = 一次反应月感电 + 一次直伤月感电 + 一次E技能雷伤
         let total_damage = electro_damage + moonelectro_reaction_damage + direct_moonelectro_damage;

@@ -90,6 +90,7 @@ pub enum WeaponConfig {
     MountainBracingBolt { rate: f64 },
     TamayurateiNoOhanashi { rate: f64 },
     FracturedHalo { after_skill_burst: bool, has_shield: bool },
+    SymphonistOfScents { off_field_rate: f64, sweet_echoes_rate: f64 },
 
     // Catalyst
     LostPrayerToTheSacredWinds { stack: f64 },

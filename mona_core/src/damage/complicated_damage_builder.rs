@@ -359,6 +359,7 @@ impl DamageBuilder for ComplicatedDamageBuilder {
             moonelectro_compose: moonelectro_enhance_comp.0,
             moonelectro_base_compose: moonelectro_base_enhance_comp.0,
             direct_moonelectro_compose: direct_moonelectro_enhance_comp.0,
+            direct_moonelectro_ratio: self.direct_moonelectro_ratio.0.clone(),
 
             melt_enhance: melt_enhance_comp.0,
             vaporize_enhance: vaporize_enhance_comp.0,
@@ -424,6 +425,7 @@ impl DamageBuilder for ComplicatedDamageBuilder {
             moonelectro_compose: HashMap::new(),
             moonelectro_base_compose: HashMap::new(),
             direct_moonelectro_compose: HashMap::new(),
+            direct_moonelectro_ratio: HashMap::new(),
 
             bonus: HashMap::new(),
             critical: HashMap::new(),
@@ -493,6 +495,7 @@ impl DamageBuilder for ComplicatedDamageBuilder {
             moonelectro_compose: HashMap::new(),
             moonelectro_base_compose: HashMap::new(),
             direct_moonelectro_compose: HashMap::new(),
+            direct_moonelectro_ratio: HashMap::new(),
 
             bonus: HashMap::new(),
             critical: HashMap::new(),

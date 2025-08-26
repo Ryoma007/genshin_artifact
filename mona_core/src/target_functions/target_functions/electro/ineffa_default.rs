@@ -32,8 +32,8 @@ impl TargetFunctionMetaTrait for IneffaDefaultTargetFunction {
             en: "Ineffa-Mechanical Moon"
         ),
         description: locale!(
-            zh_cn: "一轮输出：一次反应月感电+一次直伤月感电+一次E技能雷伤",
-            en: "One Round: Reaction Moon Electro + Direct Moon Electro + E Skill Electro DMG"
+            zh_cn: "一轮输出：一次反应月感电+一次直伤月感电+一次薇尔琪塔放电伤害",
+            en: "One Round: Reaction Moon Electro + Direct Moon Electro + Vilkita Discharge DMG"
         ),
         tags: "输出",
         four: TargetFunctionFor::SomeWho(CharacterName::Ineffa),
@@ -112,9 +112,9 @@ impl TargetFunction for IneffaDefaultTargetFunction {
         type S = <Ineffa as CharacterTrait>::DamageEnumType;
         let config = CharacterSkillConfig::Ineffa;
 
-        // 一次E技能雷元素伤害（涤净模式·稳态载频）
-        let dmg_skill = Ineffa::damage_internal::<SimpleDamageBuilder>(&context, S::Skill as usize, &config, None);
-        let electro_damage = dmg_skill.normal.expectation;
+        // 一次薇尔琪塔放电伤害
+        let dmg_vilkita = Ineffa::damage_internal::<SimpleDamageBuilder>(&context, S::VilkitaDischarge as usize, &config, None);
+        let electro_damage = dmg_vilkita.normal.expectation;
 
         // 一次反应月感电伤害（假设基于E技能触发，手动计算反应伤害）
         let character_level = character.common_data.level;
@@ -150,7 +150,7 @@ impl TargetFunction for IneffaDefaultTargetFunction {
         let direct_moonelectro_damage = direct_moonelectro_base * (1.0 + direct_em_multiplier + moonelectro_enhance) * 
                                        (1.0 + crit_rate * crit_damage) * resistance_ratio;
 
-        // 总伤害 = 一次反应月感电 + 一次直伤月感电 + 一次E技能雷伤
+        // 总伤害 = 一次反应月感电 + 一次直伤月感电 + 一次薇尔琪塔放电伤害
         let total_damage = electro_damage + moonelectro_reaction_damage + direct_moonelectro_damage;
 
         total_damage

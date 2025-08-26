@@ -8,6 +8,7 @@
             <el-radio-button v-if="showAggravateOption" label="aggravate">超激化</el-radio-button>
             <el-radio-button v-if="showMoonfallOption" label="moonfall">月绽放</el-radio-button>
             <el-radio-button v-if="showMoonElectroOption" label="moonelectro">月感电</el-radio-button>
+            <el-radio-button v-if="showDirectMoonElectroOption" label="direct_moonelectro">直伤月感电</el-radio-button>
         </el-radio-group>
 
         <span class="damage-display" v-if="damageType === 'normal'">{{ Math.round(damageNormal) }}</span>
@@ -17,6 +18,7 @@
         <span class="damage-display" v-if="damageType === 'aggravate'">{{ Math.round(damageAggravate) }}</span>
         <span class="damage-display" v-if="damageType === 'moonfall'">{{ Math.round(damageMoonfall) }}</span>
         <span class="damage-display" v-if="damageType === 'moonelectro'">{{ Math.round(damageMoonElectro) }}</span>
+        <span class="damage-display" v-if="damageType === 'direct_moonelectro'">{{ Math.round(damageDirectMoonElectro) }}</span>
     </div>
 
     <div class="header-row" style="overflow: auto; margin-bottom: 16px;">
@@ -25,6 +27,7 @@
             <div class="big-title base-damage-region" :title="Math.round(baseDamageAggravate*1000)/1000" v-else-if="damageType === 'aggravate'">{{ baseRegionName }}</div>
             <div class="big-title base-damage-region" :title="Math.round(baseDamageMoonfall*1000)/1000" v-else-if="damageType === 'moonfall'">{{ baseRegionName }}</div>
             <div class="big-title base-damage-region" :title="Math.round(baseDamageMoonElectro*1000)/1000" v-else-if="damageType === 'moonelectro'">{{ baseRegionName }}</div>
+            <div class="big-title base-damage-region" :title="Math.round(baseDamageDirectMoonElectro*1000)/1000" v-else-if="damageType === 'direct_moonelectro'">{{ baseRegionName }}</div>
             <div class="big-title base-damage-region" :title="Math.round(baseDamage*1000)/1000" v-else>{{ baseRegionName }}</div>
             <div class="header-row">
                 <damage-analysis-util
@@ -96,6 +99,12 @@
                         <span>{{ Math.round(baseDamageMoonQuicken * 1000) / 1000 }}</span>
                     </div>
                 </div>
+                <div v-if="damageType === 'direct_moonelectro'" style="min-width: 100px">
+                    <div class="big-title" style="background: rgb(236, 245, 255)">直伤月感电基础</div>
+                    <div class="header-row" style="height: 100%; display: flex; align-items: center; justify-content: center">
+                        <span>{{ Math.round(3.0 * 1000) / 1000 }}倍</span>
+                    </div>
+                </div>
                 <damage-analysis-util
                     v-if="damageType === 'spread'"
                     :arr="spreadState"
@@ -121,6 +130,16 @@
                     :arr="moonElectroBaseState"
                     title="月感电基础伤害提升"
                 ></damage-analysis-util>
+                <damage-analysis-util
+                    v-if="damageType === 'direct_moonelectro'"
+                    :arr="directMoonElectroState"
+                    title="直伤月感电增伤"
+                ></damage-analysis-util>
+                <damage-analysis-util
+                    v-if="damageType === 'direct_moonelectro'"
+                    :arr="moonElectroBaseState"
+                    title="月感电基础伤害提升"
+                ></damage-analysis-util>
             </div>
         </div>
         <div v-show="isDamage">
@@ -136,7 +155,7 @@
                 ></damage-analysis-util>
             </div>
         </div>
-        <div>
+        <div v-if="damageType !== 'moonelectro' && damageType !== 'direct_moonelectro' && damageType !== 'moonfall'">
             <div class="big-title bonus-region">加成</div>
             <div class="header-row">
                 <damage-analysis-util
@@ -240,6 +259,8 @@ export default {
             moonfallState: [],
             moonElectroState: [],
             moonElectroBaseState: [], // 月感电基础伤害提升状态
+            directMoonElectroState: [], // 直伤月感电增伤状态
+            directMoonElectroRatioState: [], // 直伤月感电倍率状态
             criticalState: [],
             criticalDamageState: [],
             meltEnhanceState: [],
@@ -278,6 +299,8 @@ export default {
                 "moonfallState": "moonfall_compose",
                 "moonElectroState": "moonelectro_compose",
                 "moonElectroBaseState": "moonelectro_base_compose", // 月感电基础伤害提升映射
+                "directMoonElectroState": "direct_moonelectro_compose", // 直伤月感电增伤映射
+                "directMoonElectroRatioState": "direct_moonelectro_ratio", // 直伤月感电倍率映射
             }
             this.element = analysis.element
             this.isHeal = analysis.is_heal
@@ -341,6 +364,10 @@ export default {
 
         showMoonElectroOption() {
             console.log("Current element:", this.element, "Show moonelectro:", this.element === "Electro" || this.element === "Hydro")
+            return this.element === "Electro" || this.element === "Hydro"
+        },
+
+        showDirectMoonElectroOption() {
             return this.element === "Electro" || this.element === "Hydro"
         },
         
@@ -476,6 +503,11 @@ export default {
             return sum(this.moonElectroBaseState)
         },
 
+        levelMultiplier() {
+            // 与后端 LEVEL_MULTIPLIER 对应
+            return LEVEL_MULTIPLIER[this.characterLevel - 1]
+        },
+
         baseDamageSpread() {
             return this.baseDamage + LEVEL_MULTIPLIER[this.characterLevel - 1] * 1.25 * (1 + this.spreadEnhance)
         },
@@ -496,6 +528,13 @@ export default {
             return this.baseDamageMoonQuicken
         },
 
+        baseDamageDirectMoonElectro() {
+            // 直伤月感电的基础伤害显示（仅用于UI显示，实际计算在damageDirectMoonElectro中）
+            const totalRatio = sum(this.directMoonElectroRatioState) // 使用专门的直伤月感电倍率
+            const enhancedRatio = totalRatio * (1.0 + this.moonElectroBaseEnhance)
+            return 3.0 * this.atk * enhancedRatio
+        },
+
         baseDamageQuicken() {
             return LEVEL_MULTIPLIER[this.characterLevel - 1] * (this.damageType === "spread" ? 1.25 : 1.15)
         },
@@ -514,7 +553,10 @@ export default {
                 // 月绽放：基础倍率 2.0
                 return baseDamage * 2.0
             } else if (this.damageType === "moonelectro") {
-                // 月感电：基础倍率 1.2  
+                // 月感电：基础倍率 1.8 (与后端一致)
+                return baseDamage * 1.8
+            } else if (this.damageType === "direct_moonelectro") {
+                // 直伤月感电：基础倍率 1.2 (仅用于计算基础，实际不基于等级)
                 return baseDamage * 1.2
             }
             
@@ -567,11 +609,31 @@ export default {
         },
 
         damageMoonElectro() {
-            // 月感电反应伤害计算
-            // 反应伤害 = 基础反应伤害 * (1 + 元素精通加成 + 反应伤害加成) * 抗性乘区
-            // 注意：反应伤害不受暴击、攻击力、伤害加成影响
-            const reactionDamage = this.baseDamageMoonQuicken * (1 + this.reactionEMBonus + this.moonElectroEnhance)
-            return reactionDamage * this.resRatio
+            // 月感电反应伤害计算（与后端一致）
+            // 基础伤害 = 等级倍率 * 基础倍率(1.8) * (1 + 基础伤害提升) * (1 + 月感电增伤)
+            // 可以暴击，但不受常规伤害加成影响
+            const baseMultiplier = 1.8
+            const enhancedBaseMultiplier = baseMultiplier * (1.0 + this.moonElectroBaseEnhance)
+            const moonelectroBaseDamage = this.levelMultiplier * enhancedBaseMultiplier * (1.0 + this.moonElectroEnhance)
+            
+            // 应用暴击（期望伤害）
+            const finalDamage = moonelectroBaseDamage * (1.0 + this.critical * this.criticalDamage)
+            return finalDamage * this.resRatio
+        },
+
+        damageDirectMoonElectro() {
+            // 直伤月感电计算（与后端一致）
+            // 基础伤害 = 3 × 攻击力 × 倍率 × (1+基础提升%) × (1+直伤月感电增伤%)
+            // 注意：基于攻击力，不是等级倍率；可以暴击，不受常规伤害加成影响
+            const directMoonElectroEnhance = sum(this.directMoonElectroState)
+            const totalRatio = sum(this.directMoonElectroRatioState) // 使用专门的直伤月感电倍率
+            const multiplier3x = 3.0
+            const enhancedRatio = totalRatio * (1.0 + this.moonElectroBaseEnhance)
+            const directMoonelectroBaseDamage = multiplier3x * this.atk * enhancedRatio * (1.0 + directMoonElectroEnhance)
+            
+            // 应用暴击（期望伤害）
+            const finalDamage = directMoonelectroBaseDamage * (1.0 + this.critical * this.criticalDamage)
+            return finalDamage * this.resRatio
         },
 
         damageNormal() {

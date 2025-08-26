@@ -284,14 +284,20 @@ impl CharacterTrait for Skirk {
         if matches!(s, BurstSlash | BurstFinalSlash) && cunning_stacks > 50 {
             let cunning_bonus_stacks = ((cunning_stacks - 50).min(12)) as f64;
             let cunning_bonus_ratio = SKIRK_SKILL.elemental_burst_cunning_bonus[s3] * cunning_bonus_stacks;
-            builder.add_atk_ratio("蛇之狡谋加成", cunning_bonus_ratio);
+            
+            // 对于斩击伤害，蛇之狡谋加成也需要×5
+            if matches!(s, BurstSlash) {
+                builder.add_atk_ratio("蛇之狡谋加成", cunning_bonus_ratio * 5.0);
+            } else {
+                builder.add_atk_ratio("蛇之狡谋加成", cunning_bonus_ratio);
+            }
         }
 
-        // 万流归寂 - 死河渡断效果对七相一闪模式攻击的伤害提升
-        if seven_phase_mode && death_crossing_stacks > 0 {
+        // 万流归寂 - 死河渡断效果
+        if death_crossing_stacks > 0 {
             match s {
                 // 七相一闪模式下的普通攻击伤害提升：1层110%, 2层120%, 3层170%
-                Skill1 | Skill2 | Skill3 | Skill4 | Skill5 | SkillCharged => {
+                Skill1 | Skill2 | Skill3 | Skill4 | Skill5 | SkillCharged if seven_phase_mode => {
                     let damage_multiplier = match death_crossing_stacks {
                         1 => 1.10,
                         2 => 1.20,
@@ -299,7 +305,8 @@ impl CharacterTrait for Skirk {
                         _ => 1.0,
                     };
                     if damage_multiplier > 1.0 {
-                        builder.add_atk_ratio("天赋「万流归寂」额外倍率", ratio * (damage_multiplier - 1.0));
+                        let base_with_cunning = ratio; // 七相一闪模式下没有蛇之狡谋加成
+                        builder.add_atk_ratio("天赋「万流归寂」额外倍率", base_with_cunning * (damage_multiplier - 1.0));
                     }
                 },
                 // 元素爆发伤害提升：1层105%, 2层115%, 3层160%
@@ -311,7 +318,19 @@ impl CharacterTrait for Skirk {
                         _ => 1.0,
                     };
                     if damage_multiplier > 1.0 {
-                        builder.add_atk_ratio("天赋「万流归寂」额外倍率", ratio * (damage_multiplier - 1.0));
+                        // 计算基础倍率+蛇之狡谋加成的总和
+                        let mut base_with_cunning = ratio;
+                        if cunning_stacks > 50 {
+                            let cunning_bonus_stacks = ((cunning_stacks - 50).min(12)) as f64;
+                            let cunning_bonus_ratio = SKIRK_SKILL.elemental_burst_cunning_bonus[s3] * cunning_bonus_stacks;
+                            if matches!(s, BurstSlash) {
+                                base_with_cunning += cunning_bonus_ratio * 5.0;
+                            } else {
+                                base_with_cunning += cunning_bonus_ratio;
+                            }
+                        }
+                        // 万流归寂额外倍率 = (基础+蛇之狡谋) × (伤害加成百分比 - 1)
+                        builder.add_atk_ratio("天赋「万流归寂」额外倍率", base_with_cunning * (damage_multiplier - 1.0));
                     }
                 },
                 _ => {}
